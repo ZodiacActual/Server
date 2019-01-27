@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="bin">
+    <CLASSES>
+      <root url="file://C:/Program Files/Java/jdk1.8.0_144/bin" />
+    </CLASSES>
+    <JAVADOC />
+    <NATIVE>
+      <root url="file://C:/Program Files/Java/jdk1.8.0_144/bin" />
+    </NATIVE>
+    <SOURCES />
+    <jarDirectory url="file://C:/Program Files/Java/jdk1.8.0_144/bin" recursive="false" />
+  </library>
+</component>
