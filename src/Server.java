@@ -18,6 +18,8 @@ import java.util.Base64;
 import java.util.Formatter;
 import java.util.Scanner;
 import java.sql.*;
+import java.math.*;
+
 public class Server {
         static {
             try {
@@ -42,7 +44,6 @@ public class Server {
     }
     //대칭키 암호화(AES)
     public static byte[] AESencrypt(SecretKey secretKey, byte[] plainData) throws GeneralSecurityException {
-
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         byte[] encryptData = cipher.doFinal(plainData);
@@ -82,6 +83,9 @@ public class Server {
             int input = 0;
             String inputString = null;
             String outputString = null;
+            byte[] buffer;
+            String OutputString;
+            int out;
 
             boolean exit = false;
 
@@ -89,23 +93,59 @@ public class Server {
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
             kpg.initialize(1024);
             KeyPair keypair = kpg.genKeyPair();
-            PublicKey pubkey = keypair.getPublic();
-            PrivateKey prikey = keypair.getPrivate();
+            final PublicKey pubkey = keypair.getPublic();
+            final PrivateKey prikey = keypair.getPrivate();
 
             //키교환 시작
-            byte[] key = pubkey.getEncoded();
-            oos.writeObject(key);
+            //서버 공개키 전송
+            oos.writeObject(pubkey.getEncoded());
             oos.flush();
 
-            byte[] clientkey = (byte[])ois.readObject();
+            //클라이언트 공개키 수신 및 복구
+            buffer = (byte[])ois.readObject();
             KeyFactory kf = KeyFactory.getInstance("RSA");
-            PublicKey clientKey = kf.generatePublic(new X509EncodedKeySpec(clientkey));//키 복구
+            PublicKey clientKey = kf.generatePublic(new X509EncodedKeySpec(buffer));
+
+            //여기서부터 공개키로 암호화 전송
+            //비밀키 생성 및 전송
             KeyGenerator keyGen = KeyGenerator.getInstance("AES");//알고리즘은 AES
-            keyGen.init(256);//256비트 AES키 생성
-            SecretKey secretKey = keyGen.generateKey();
+            keyGen.init(128);//256비트 AES키 생성
+            final SecretKey secretKey = keyGen.generateKey();
             oos.writeObject(RSAEncrypt(clientKey, secretKey));
             oos.flush();
+
+            buffer = RSADecrypt(prikey, (byte[])ois.readObject());
+            SecretKey temp = new SecretKeySpec(buffer, "AES");
+            if(temp.equals(secretKey)) {
+                System.out.println("클라이언트와의 대칭키 대조 결과 : 일치");
+                oos.writeObject(true);
+                oos.flush();
+            }
+            else {
+                System.out.println("클라이언트와의 대칭키 대조 결과 : 불일치");
+                oos.writeObject(false);
+                oos.flush();
+                System.exit(0);
+            }
+
             while (true) {
+                OutputString = "Noel Bank 0.01 ver";
+                oos.writeObject(AESencrypt(secretKey, OutputString.getBytes()));
+                OutputString = "원하시는 서비스를 선택해주세요.";
+                oos.writeObject(AESencrypt(secretKey, OutputString.getBytes()));
+                OutputString ="1. 사용자 등록";
+                oos.writeObject(AESencrypt(secretKey, OutputString.getBytes()));
+                OutputString ="2. 로그인";
+                oos.writeObject(AESencrypt(secretKey, OutputString.getBytes()));
+                OutputString ="3. 종료";
+                oos.writeObject(AESencrypt(secretKey, OutputString.getBytes()));
+                out = 1;
+                OutputString = Integer.toString(out);
+                oos.writeObject(AESencrypt(secretKey, OutputString.getBytes()));
+                oos.flush();
+
+                buffer = AESdecrypt(secretKey, (byte[])ois.readObject());
+                System.out.println(buffer);
 
             }
         } catch(SQLException | IOException | ClassNotFoundException |GeneralSecurityException exception) {
